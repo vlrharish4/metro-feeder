@@ -26,12 +26,25 @@ public class RouteGenerationService {
 	public final static Double minDistance = 1.0;
 	
 	public Map<Node, Graph> routeGenerationAlgorithm(
-			DirectedWeightedMultigraph<Node, Edge> graph, 
-			List<Node> nodes) {
+			DirectedWeightedMultigraph<Node, Edge> graph) {
 		
 		Map<Node, Graph> generatedRoutes = new LinkedHashMap<Node, Graph>();
 		
-		for(Node node: nodes) {
+		Set<Node> allStops = graph.vertexSet();
+		
+		//Filtering out all Bus Stop Nodes
+		Set<Node> originMetros =  allStops.stream()
+			.filter((node) -> { 
+				if(node.isMetro.equals(new Boolean(true))) {
+					if(node.demand.compareTo(7) >= 0) {
+						return true;
+					} 
+				} //Filtering metros whose demand is greater than or equal to 7
+					return false;
+			})
+			.collect(Collectors.toSet());	
+		
+		for(Node node: originMetros) {
 						
 			DirectedWeightedMultigraph<Node, Edge> routeGraph = 
 					new DirectedWeightedMultigraph<Node, Edge>(Edge.class);
@@ -42,7 +55,7 @@ public class RouteGenerationService {
 			DirectedWeightedMultigraph<Node, Edge> clonedGraph = 
 					(DirectedWeightedMultigraph<Node, Edge>) graph.clone();
 			
-			routeGraph = this.routeStitching(clonedGraph, node, routeGraph, routeDistance);
+			routeGraph = this.routeStitching(clonedGraph, node, originMetros, routeGraph, routeDistance);
 			
 			generatedRoutes.put(node, routeGraph);
 			
@@ -52,7 +65,7 @@ public class RouteGenerationService {
 		
 	}
 	
-	public Edge findTheNextStop(Set<Edge> outGoingEdges, Double routeDistance) {
+	public Edge findTheNextStop(Set<Edge> outGoingEdges, Set<Node> originMetros, Double routeDistance) {
 		
 		Edge nextStop = null;
 		ArrayList<Edge> edges = new ArrayList<>(outGoingEdges);
@@ -63,12 +76,14 @@ public class RouteGenerationService {
 				.filter((edge) -> 
 				edge.getWeight() > RouteGenerationService.minDistance &&
 				(edge.getWeight() + routeDistance) <= RouteGenerationService.maxDistance)
-				//Filtering out edges whose target is a Bus Stop with 0 demand
+				//Filtering out edges whose target is a Bus Stop with 0 demand and metros which are a part of origin metros
 				.filter((edge) -> {
 					if(edge.getTarget().isMetro.equals(new Boolean(false))) {
 						if(edge.getTarget().demand.equals(new Integer(0))) {
 							return false;
 						}
+					} else if(originMetros.contains(edge.getTarget())) {
+						return false;
 					}
 					return true;
 				})
@@ -82,11 +97,11 @@ public class RouteGenerationService {
 	}
 	
 	public DirectedWeightedMultigraph<Node, Edge> routeStitching(
-			DirectedWeightedMultigraph<Node, Edge> completeGraph, Node currentStop, 
+			DirectedWeightedMultigraph<Node, Edge> completeGraph, Node currentStop, Set<Node> originMetros,
 			DirectedWeightedMultigraph<Node, Edge> routeGraph, Double routeDistance) {
 		
 		Set<Edge> outGoingEdges = completeGraph.outgoingEdgesOf(currentStop);
-		Edge nextConnection = this.findTheNextStop(outGoingEdges, routeDistance);
+		Edge nextConnection = this.findTheNextStop(outGoingEdges, originMetros, routeDistance);
 		
 		if(nextConnection != null) {
 			Node nextStop = nextConnection.getTarget();
@@ -96,7 +111,7 @@ public class RouteGenerationService {
 			routeDistance = routeDistance + nextConnection.getWeight();
 			completeGraph.removeVertex(currentStop);
 			//Recursion
-			this.routeStitching(completeGraph, nextStop, routeGraph, routeDistance);
+			this.routeStitching(completeGraph, nextStop, originMetros, routeGraph, routeDistance);
 		}
 		
 		return routeGraph;

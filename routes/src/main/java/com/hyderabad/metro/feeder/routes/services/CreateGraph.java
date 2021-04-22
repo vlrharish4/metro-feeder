@@ -169,21 +169,9 @@ public class CreateGraph implements CommandLineRunner{
 	public void run(String... args) throws Exception {
 		
 		this.ODMatrix = this.fetchDataFromMatrix();
-		this.demandData = this.fetchDemandData();
-		//Filtering out all Bus Stop vertices
-		List<Node> metroNodes = this.createNodes()
-				.stream()
-				.filter((node) -> { 
-					if(node.isMetro.equals(new Boolean(true))) {
-						if(node.demand.compareTo(3) >= 0) {
-							return true;
-						} 
-					} //Filtering metros whose demand is greater than or equal to 3
-					return false;
-				})
-				.collect(Collectors.toList());		
+		this.demandData = this.fetchDemandData();	
 		DirectedWeightedMultigraph<Node, Edge> graph = this.createGraph();
-		this.routeGenerationService.routeGenerationAlgorithm(graph, metroNodes);
+		this.routeGenerationService.routeGenerationAlgorithm(graph);
 		//graphExporter.exportGraph(graph);
 	}
 
