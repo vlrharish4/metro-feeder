@@ -3,10 +3,12 @@ package com.hyderabad.metro.feeder.routes.services;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.jgrapht.Graph;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -171,8 +173,11 @@ public class CreateGraph implements CommandLineRunner{
 		this.ODMatrix = this.fetchDataFromMatrix();
 		this.demandData = this.fetchDemandData();	
 		DirectedWeightedMultigraph<Node, Edge> graph = this.createGraph();
-		this.routeGenerationService.routeGenerationAlgorithm(graph);
-		//graphExporter.exportGraph(graph);
+		Map<Node, Graph> routes = this.routeGenerationService.routeGenerationAlgorithm(graph);
+		routes.keySet().stream()
+		.forEach((key) -> {
+			this.graphExporter.exportGraph(routes.get(key), key.name);
+		});
 	}
 
 }
