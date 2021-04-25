@@ -25,10 +25,10 @@ public class RouteGenerationService {
 	
 	public final static Double minDistance = 1.0;
 	
-	public Map<Node, Graph> routeGenerationAlgorithm(
+	public Map<Node, Graph<Node, Edge>> routeGenerationAlgorithm(
 			DirectedWeightedMultigraph<Node, Edge> graph) {
 		
-		Map<Node, Graph> generatedRoutes = new LinkedHashMap<Node, Graph>();
+		Map<Node, Graph<Node, Edge>> generatedRoutes = new LinkedHashMap<>();
 		
 		Set<Node> allStops = graph.vertexSet();
 		

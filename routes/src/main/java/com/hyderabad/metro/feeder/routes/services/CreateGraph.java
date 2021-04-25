@@ -3,31 +3,22 @@ package com.hyderabad.metro.feeder.routes.services;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-import org.jgrapht.Graph;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
 import com.hyderabad.metro.feeder.routes.beans.Edge;
 import com.hyderabad.metro.feeder.routes.beans.Node;
 import com.hyderabad.metro.feeder.routes.utils.ExcelUtility;
-import com.hyderabad.metro.feeder.routes.utils.GraphExporter;
 
 @Service
-public class CreateGraph implements CommandLineRunner{
+public class CreateGraph {
 	
 	@Autowired
 	private ExcelUtility excelUtility;
-	
-	@Autowired RouteGenerationService routeGenerationService;
-	
-	@Autowired GraphExporter graphExporter;
 	
 	private final static Logger LOGGER = Logger.getLogger(CreateGraph.class.getName());
 	
@@ -106,6 +97,10 @@ public class CreateGraph implements CommandLineRunner{
 	
 	public DirectedWeightedMultigraph<Node, Edge> createGraph() {
 		
+		this.ODMatrix = this.fetchDataFromMatrix();
+		
+		this.demandData = this.fetchDemandData();
+		
 		DirectedWeightedMultigraph<Node, Edge> graph = 
 				new DirectedWeightedMultigraph<Node, Edge>(Edge.class);
 		
@@ -164,20 +159,6 @@ public class CreateGraph implements CommandLineRunner{
 			stationNode = new Node(name.substring(0, name.length() - 2), new Boolean(true), demandAtNode);
 		}
 		return stationNode;
-	}
-
-
-	@Override
-	public void run(String... args) throws Exception {
-		
-		this.ODMatrix = this.fetchDataFromMatrix();
-		this.demandData = this.fetchDemandData();	
-		DirectedWeightedMultigraph<Node, Edge> graph = this.createGraph();
-		Map<Node, Graph> routes = this.routeGenerationService.routeGenerationAlgorithm(graph);
-		routes.keySet().stream()
-		.forEach((key) -> {
-			this.graphExporter.exportGraph(routes.get(key), key.name);
-		});
 	}
 
 }
