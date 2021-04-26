@@ -55,14 +55,9 @@ public class FleetAdjustmentService {
 		
 		Integer totalFleetSize = fleetSizes.values().stream().mapToInt(Integer::intValue).sum();
 		
-		if(totalFleetSize > FleetAdjustmentService.maxFleetSize) {
-			
-			Map<Node, Double> adjustedHeadWay = this.headWayAdjustment(fleetSizes, routes);
-			
-			return this.fleetSizeAdjustment(routes, fleetSizes, adjustedHeadWay);
-		}
+		Map<Node, Double> adjustedHeadWay = this.headWayAdjustment(fleetSizes, routes);
 		
-		return fleetSizes;		
+		return this.fleetSizeAdjustment(routes, fleetSizes, adjustedHeadWay);
 	}
 	
 	public Map<Node, Integer> fleetSizeCalculation(Map<Node, Graph<Node, Edge>> routes) {
@@ -84,7 +79,7 @@ public class FleetAdjustmentService {
 			Double headWayValue = headWay.get(node);
 			
 			Double numerator = 2 * (totalDistanceOfRoute + (FleetAdjustmentService.dwellTime
-					+ numberOfStops + FleetAdjustmentService.speedOfTheBus));
+					* numberOfStops * FleetAdjustmentService.speedOfTheBus));
 			
 			Double denominator = headWayValue * FleetAdjustmentService.speedOfTheBus;
 			
