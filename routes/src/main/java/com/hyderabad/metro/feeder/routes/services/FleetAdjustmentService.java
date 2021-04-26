@@ -36,7 +36,9 @@ public class FleetAdjustmentService {
 	
 	private final static Integer busCapacity = 50; //Bus Capacity
 	
-	private final static Integer maxFleetSize = 74; 
+	private final static Integer maxBusCapacity = 60; //Max Bus Capacity
+	
+	private final static Integer maxFleetSize = 74; //Buses per hour
 	
 	//Travel Demand Matrix
 	private String sheetName = "Travel Demand Matrix";
@@ -47,8 +49,105 @@ public class FleetAdjustmentService {
 	
 	private List<List<Object>> travelDemandMatrix;
 	
-	public Double adjustFleetSize(Map<Node, Graph<Node, Edge>> routes) {
-		return 0.0;		
+	public Map<Node, Integer> compute(Map<Node, Graph<Node, Edge>> routes) {
+		
+		Map<Node, Integer> fleetSizes = this.fleetSizeCalculation(routes);
+		
+		Integer totalFleetSize = fleetSizes.values().stream().mapToInt(Integer::intValue).sum();
+		
+		if(totalFleetSize > FleetAdjustmentService.maxFleetSize) {
+			
+			Map<Node, Double> adjustedHeadWay = this.headWayAdjustment(fleetSizes, routes);
+			
+			return this.fleetSizeAdjustment(routes, fleetSizes, adjustedHeadWay);
+		}
+		
+		return fleetSizes;		
+	}
+	
+	public Map<Node, Integer> fleetSizeCalculation(Map<Node, Graph<Node, Edge>> routes) {
+		
+		Map<Node, Double> headWay = this.headWayCalculation(routes);
+		
+		Set<Node> originNodes = routes.keySet();
+		
+		Map<Node, Integer> fleetSizeValues = originNodes.stream()
+				.collect(Collectors.toMap(node -> node, node -> {
+			
+			Graph<Node, Edge> graph = routes.get(node);
+			
+			Double totalDistanceOfRoute = graph.edgeSet().stream()
+					.mapToDouble(f -> f.getWeight()).sum();
+			
+			Integer numberOfStops = graph.vertexSet().size();
+			
+			Double headWayValue = headWay.get(node);
+			
+			Double numerator = 2 * (totalDistanceOfRoute + (FleetAdjustmentService.dwellTime
+					+ numberOfStops + FleetAdjustmentService.speedOfTheBus));
+			
+			Double denominator = headWayValue * FleetAdjustmentService.speedOfTheBus;
+			
+			return new Double(Math.ceil(numerator/denominator)).intValue();
+		}));
+		
+		return fleetSizeValues;		
+	}
+	
+	public Map<Node, Double> headWayAdjustment(Map<Node, Integer> fleetSizes, Map<Node, Graph<Node, Edge>> routes) {
+		
+		Set<Node> nodes = fleetSizes.keySet();
+		
+		Map<Node, Double> adjustedHeadWay = nodes.stream()
+				.collect(Collectors.toMap(node -> node, node -> {
+			
+			//Reduce each current fleet size value by 1
+			Integer reducedFleetSize = fleetSizes.get(node) - 1;
+			
+			Graph<Node, Edge> route = routes.get(node);
+			
+			Double totalDistanceOfRoute = route.edgeSet().stream()
+					.mapToDouble(f -> f.getWeight()).sum();
+			
+			Integer numberOfStops = route.vertexSet().size();
+			
+			Double numerator = 2 * (totalDistanceOfRoute + (FleetAdjustmentService.dwellTime
+					* numberOfStops * FleetAdjustmentService.speedOfTheBus));
+			
+			Integer denominator = reducedFleetSize * FleetAdjustmentService.speedOfTheBus;
+			
+			//Calculate Headway by substituting reduced fleet size value in Fleet size formula
+			return numerator/denominator;
+		}));
+		
+		return adjustedHeadWay;
+	}
+	
+	public Map<Node, Integer> fleetSizeAdjustment(Map<Node, Graph<Node, Edge>> routes, 
+			Map<Node, Integer> currentFleetSizes, Map<Node, Double> adjustedHeadWay) {
+		
+		Set<Node> originNodes = routes.keySet();
+		
+		Map<Node, Integer> adjustedFleetSizes;		
+		
+		adjustedFleetSizes = originNodes.stream()
+		.collect(Collectors.toMap(node -> node, node -> {
+	
+			Integer highestDemandValue = this.getTravelDemandForRoute(routes.get(node)).stream()
+			.collect(Collectors.summarizingInt(Integer::intValue)).getMax();
+			
+			//Use adjusted headway in Headway 2 formula to find the increased bus capacity
+			Double capacity = highestDemandValue * adjustedHeadWay.get(node);
+			
+			//Check if the capacity calculated using adjusted headway is greater than max bus capacity
+			if(capacity > FleetAdjustmentService.maxBusCapacity) {
+				//Set current fleet size value
+				return currentFleetSizes.get(node);
+			} 	
+			return currentFleetSizes.get(node) - 1;	
+		}));
+		
+		return adjustedFleetSizes;		
 	}
 	
 	public Map<Node, Double> headWayCalculation(Map<Node, Graph<Node, Edge>> routes) {

@@ -56,6 +56,15 @@ public class GraphExporter {
 		}
 		
 	}
+	
+	public void exportRoutes(Map<Node, Graph<Node, Edge>> routes) {
+		
+		routes.keySet().stream()
+		.forEach(node -> {
+			this.exportGraph(routes.get(node), node.name);
+		});
+		
+	}
 
 }
 
